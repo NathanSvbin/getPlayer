@@ -66,24 +66,53 @@ export default async function handler(req, res) {
     }
 
     try {
-        const data = await fetchPlayerData(id);
+    const data = await fetchPlayerData(id);
 
-        // Formatage optionnel pour nettoyer la réponse (trop massive par défaut)
-        const cleanData = {
-            id: data.id,
-            name: data.name,
-            team: data.primaryTeam?.name,
-            position: data.positionDescription?.primaryPosition?.label,
-            age: data.birthDate?.age,
-            marketValue: data.marketValue?.value,
-            country: data.country,
-            imageUrl: `https://images.fotmob.com/image_resources/playerimages/${id}.png`,
-            recentStats: data.stats?.find(s => s.title === "Top stats")?.stats || {}
-        };
+    // 1. Extraction sécurisée des statistiques de la saison
+    const seasonStatsGroup = data.playerProps?.find(p => p.title === "Season Stats")?.items || [];
+    const stats = {};
+    seasonStatsGroup.forEach(item => {
+        stats[item.title] = item.value;
+    });
 
-        res.status(200).json(cleanData);
+    // 2. Construction de l'objet complet
+    const cleanData = {
+        id: data.id,
+        name: data.name,
+        fullName: data.origin?.name || data.name,
+        birthDate: data.birthDate?.utcTime,
+        age: data.birthDate?.age,
+        country: data.country,
+        // Infos Club
+        currentTeam: data.primaryTeam?.name,
+        league: data.mainLeague?.name,
+        position: data.positionDescription?.primaryPosition?.label,
+        marketValue: data.marketValue?.value || "N/A",
+        imageUrl: `https://images.fotmob.com/image_resources/playerimages/${id}.png`,
+        teamLogo: `https://images.fotmob.com/image_resources/logo/teamlogo/${data.primaryTeam?.id}.png`,
+        
+        // Statistiques de la saison actuelle
+        seasonStatistics: {
+            rating: data.lastLeagueRating?.rating || "N/A",
+            goals: stats["Goals"] || 0,
+            assists: stats["Assists"] || 0,
+            appearances: stats["Matches"] || 0,
+            yellowCards: stats["Yellow cards"] || 0,
+            redCards: stats["Red cards"] || 0
+        },
 
-    } catch (error) {
+        // Historique récent (Notes des derniers matchs)
+        recentForm: data.recentMatches?.map(m => ({
+            date: m.matchDate,
+            opponent: m.opponentName,
+            rating: m.rating,
+            isHome: m.isHome
+        })) || []
+    };
+
+    res.status(200).json(cleanData);
+
+}catch (error) {
         console.error(`Erreur Player ID ${id}:`, error.message);
         res.status(500).json({ error: "Erreur Fotmob", details: error.message });
     }
