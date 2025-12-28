@@ -68,45 +68,9 @@ export default async function handler(req, res) {
     try {
         const data = await fetchPlayerData(id);
     
-        const cleanData = {
-            // --- Identité ---
-            id: data.id,
-            name: data.name,
-            position: data.positionDescription?.primaryPosition?.label,
-            age: data.birthDate?.age,
-            country: data.country,
-            height: data.playerInformation?.find(i => i.title === "Height")?.value,
-            preferredFoot: data.playerInformation?.find(i => i.title === "Preferred foot")?.value,
+        // On ne filtre rien, on balance tout le JSON brut
+        res.status(200).json(data); 
     
-            // --- Statut Actuel ---
-            currentTeam: data.primaryTeam?.name,
-            marketValue: data.marketValues?.find(v => v.isCurrent)?.value || "N/A",
-            isInjured: !!data.injuryInformation,
-            injuryDetail: data.injuryInformation?.motive || null,
-    
-            // --- Palmarès ---
-            trophies: data.trophies?.playerTrophies?.map(t => ({
-                name: t.competitionName,
-                count: t.wonQuantity
-            })) || [],
-    
-            // --- Historique de Carrière (Simplifié) ---
-            career: data.careerHistory?.careerItems?.college?.map(c => ({
-                team: c.team,
-                season: c.season,
-                goals: c.goals,
-                appearances: c.appearances
-            })) || [],
-    
-            // --- Forme Récente ---
-            form: data.recentMatches?.map(m => ({
-                opponent: m.opponentName,
-                rating: m.rating,
-                minutes: m.minutesPlayed
-            })).slice(0, 5) // Les 5 derniers matchs
-        };
-    
-        res.status(200).json(cleanData);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
