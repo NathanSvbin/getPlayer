@@ -1,0 +1,9 @@
+{
+"name": "footastique-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions pour FootAstique",
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.13.2"
+  }
+}
