@@ -66,54 +66,48 @@ export default async function handler(req, res) {
     }
 
     try {
-    const data = await fetchPlayerData(id);
-
-    // 1. Extraction sécurisée des statistiques de la saison
-    const seasonStatsGroup = data.playerProps?.find(p => p.title === "Season Stats")?.items || [];
-    const stats = {};
-    seasonStatsGroup.forEach(item => {
-        stats[item.title] = item.value;
-    });
-
-    // 2. Construction de l'objet complet
-    const cleanData = {
-        id: data.id,
-        name: data.name,
-        fullName: data.origin?.name || data.name,
-        birthDate: data.birthDate?.utcTime,
-        age: data.birthDate?.age,
-        country: data.country,
-        // Infos Club
-        currentTeam: data.primaryTeam?.name,
-        league: data.mainLeague?.name,
-        position: data.positionDescription?.primaryPosition?.label,
-        marketValue: data.marketValue?.value || "N/A",
-        imageUrl: `https://images.fotmob.com/image_resources/playerimages/${id}.png`,
-        teamLogo: `https://images.fotmob.com/image_resources/logo/teamlogo/${data.primaryTeam?.id}.png`,
-        
-        // Statistiques de la saison actuelle
-        seasonStatistics: {
-            rating: data.lastLeagueRating?.rating || "N/A",
-            goals: stats["Goals"] || 0,
-            assists: stats["Assists"] || 0,
-            appearances: stats["Matches"] || 0,
-            yellowCards: stats["Yellow cards"] || 0,
-            redCards: stats["Red cards"] || 0
-        },
-
-        // Historique récent (Notes des derniers matchs)
-        recentForm: data.recentMatches?.map(m => ({
-            date: m.matchDate,
-            opponent: m.opponentName,
-            rating: m.rating,
-            isHome: m.isHome
-        })) || []
-    };
-
-    res.status(200).json(cleanData);
-
-}catch (error) {
-        console.error(`Erreur Player ID ${id}:`, error.message);
-        res.status(500).json({ error: "Erreur Fotmob", details: error.message });
+        const data = await fetchPlayerData(id);
+    
+        const cleanData = {
+            // --- Identité ---
+            id: data.id,
+            name: data.name,
+            position: data.positionDescription?.primaryPosition?.label,
+            age: data.birthDate?.age,
+            country: data.country,
+            height: data.playerInformation?.find(i => i.title === "Height")?.value,
+            preferredFoot: data.playerInformation?.find(i => i.title === "Preferred foot")?.value,
+    
+            // --- Statut Actuel ---
+            currentTeam: data.primaryTeam?.name,
+            marketValue: data.marketValues?.find(v => v.isCurrent)?.value || "N/A",
+            isInjured: !!data.injuryInformation,
+            injuryDetail: data.injuryInformation?.motive || null,
+    
+            // --- Palmarès ---
+            trophies: data.trophies?.playerTrophies?.map(t => ({
+                name: t.competitionName,
+                count: t.wonQuantity
+            })) || [],
+    
+            // --- Historique de Carrière (Simplifié) ---
+            career: data.careerHistory?.careerItems?.college?.map(c => ({
+                team: c.team,
+                season: c.season,
+                goals: c.goals,
+                appearances: c.appearances
+            })) || [],
+    
+            // --- Forme Récente ---
+            form: data.recentMatches?.map(m => ({
+                opponent: m.opponentName,
+                rating: m.rating,
+                minutes: m.minutesPlayed
+            })).slice(0, 5) // Les 5 derniers matchs
+        };
+    
+        res.status(200).json(cleanData);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 }
